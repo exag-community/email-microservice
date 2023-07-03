@@ -2,11 +2,12 @@ package services
 
 import (
 	"context"
-	"fmt"
 	pb "github.com/qcodelabsllc/exag/email/gen"
 	"github.com/qcodelabsllc/exag/email/utils"
+	"github.com/sendgrid/sendgrid-go"
+	"github.com/sendgrid/sendgrid-go/helpers/mail"
 	"google.golang.org/grpc/codes"
-	"net/smtp"
+	"log"
 	"os"
 )
 
@@ -14,12 +15,10 @@ type EmailServiceImpl struct {
 	pb.UnimplementedEmailServiceServer
 }
 
-func (s *EmailServiceImpl) SendMail(ctx context.Context, req *pb.SendMessageRequest) (*pb.Empty, error) {
+func (s *EmailServiceImpl) SendMail(_ context.Context, req *pb.SendMessageRequest) (*pb.Empty, error) {
 	// validate email
-	for _, email := range req.GetRecipients() {
-		if err := utils.ValidateEmail(email); err != nil {
-			return nil, err
-		}
+	if err := utils.ValidateEmail(req.GetEmail()); err != nil {
+		return nil, err
 	}
 	if err := utils.ValidateNonEmptyString(req.GetSubject()); err != nil {
 		return nil, err
@@ -28,24 +27,24 @@ func (s *EmailServiceImpl) SendMail(ctx context.Context, req *pb.SendMessageRequ
 		return nil, err
 	}
 
-	// create smtp auth
-	auth := smtp.PlainAuth("", os.Getenv("MAIL_USERNAME"), os.Getenv("MAIL_PASSWORD"), os.Getenv("MAIL_HOST"))
-
-	// address
-	addr := fmt.Sprintf("%s:%s", os.Getenv("MAIL_HOST"), os.Getenv("MAIL_PORT"))
-
-	// create message
-	msg := []byte("Subject: " + req.GetSubject() + "\r\n" +
-		"\r\n" +
-		req.GetBody() + "\r\n")
-
 	// send email
-	if err := smtp.SendMail(addr, auth, os.Getenv("MAIL_USERNAME"),
-		req.GetRecipients(), msg); err != nil {
+	from := mail.NewEmail("EXAG Community", os.Getenv("MAIL_USERNAME"))
+	to := mail.NewEmail(req.GetUsername(), req.GetEmail())
+	var plainTextContent, htmlContent string
+	if req.GetMailType() == pb.MailType_MAIL_TYPE_HTML {
+		htmlContent = req.GetBody()
+	} else {
+		plainTextContent = req.GetBody()
+	}
+	message := mail.NewSingleEmail(from, req.GetSubject(), to, plainTextContent, htmlContent)
+	client := sendgrid.NewSendClient(os.Getenv("SENDGRID_API_KEY"))
+	if _, err := client.Send(message); err != nil {
+		log.Printf("error sending email: %v", err)
 		return nil, utils.ErrorMessageFromStatusCode(&utils.ErrorParams{
 			Code:    codes.Internal,
 			Message: utils.InternalErrorMessage,
 		})
 	}
+
 	return &pb.Empty{}, nil
 }
