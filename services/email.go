@@ -16,8 +16,10 @@ type EmailServiceImpl struct {
 
 func (s *EmailServiceImpl) SendMail(ctx context.Context, req *pb.SendMessageRequest) (*pb.Empty, error) {
 	// validate email
-	if err := utils.ValidateEmail(req.GetTo()); err != nil {
-		return nil, err
+	for _, email := range req.GetRecipients() {
+		if err := utils.ValidateEmail(email); err != nil {
+			return nil, err
+		}
 	}
 	if err := utils.ValidateNonEmptyString(req.GetSubject()); err != nil {
 		return nil, err
@@ -32,9 +34,14 @@ func (s *EmailServiceImpl) SendMail(ctx context.Context, req *pb.SendMessageRequ
 	// address
 	addr := fmt.Sprintf("%s:%s", os.Getenv("MAIL_HOST"), os.Getenv("MAIL_PORT"))
 
+	// create message
+	msg := []byte("Subject: " + req.GetSubject() + "\r\n" +
+		"\r\n" +
+		req.GetBody() + "\r\n")
+
 	// send email
 	if err := smtp.SendMail(addr, auth, os.Getenv("MAIL_USERNAME"),
-		[]string{req.GetTo()}, []byte(req.GetBody())); err != nil {
+		req.GetRecipients(), msg); err != nil {
 		return nil, utils.ErrorMessageFromStatusCode(&utils.ErrorParams{
 			Code:    codes.Internal,
 			Message: utils.InternalErrorMessage,
