@@ -29,7 +29,7 @@ func (s *EmailServiceImpl) SendMail(_ context.Context, req *pb.SendMessageReques
 	}
 
 	// send email
-	if err := useSMTP(req); err != nil {
+	if err := useGmailSMTP(req); err != nil {
 		return nil, err
 	}
 
@@ -60,8 +60,10 @@ func useSendGrid(req *pb.SendMessageRequest) error {
 	return nil
 }
 
-// useSMTP is a helper function to send email using gmail smtp
-func useSMTP(req *pb.SendMessageRequest) error {
+// useGmailSMTP is a helper function to send email using gmail smtp
+// https://medium.com/glottery/sending-emails-with-go-golang-and-gmail-39bc20423cf0
+// https://articles.wesionary.team/sending-emails-with-go-golang-using-smtp-gmail-and-oauth2-185ee12ab306
+func useGmailSMTP(req *pb.SendMessageRequest) error {
 	// setup auth
 	auth := smtp.PlainAuth("", os.Getenv("MAIL_USERNAME"), os.Getenv("MAIL_PASSWORD"), os.Getenv("MAIL_HOST"))
 
