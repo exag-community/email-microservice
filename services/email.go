@@ -8,6 +8,7 @@ import (
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
 	"google.golang.org/grpc/codes"
 	"log"
+	"net/smtp"
 	"os"
 )
 
@@ -28,6 +29,16 @@ func (s *EmailServiceImpl) SendMail(_ context.Context, req *pb.SendMessageReques
 	}
 
 	// send email
+	if err := useSMTP(req); err != nil {
+		return nil, err
+	}
+
+	return &pb.Empty{}, nil
+}
+
+// useSendGrid is a helper function to send email using sendgrid
+func useSendGrid(req *pb.SendMessageRequest) error {
+	// send email
 	from := mail.NewEmail("EXAG Community", os.Getenv("MAIL_USERNAME"))
 	to := mail.NewEmail(req.GetUsername(), req.GetEmail())
 	var plainTextContent, htmlContent string
@@ -40,11 +51,34 @@ func (s *EmailServiceImpl) SendMail(_ context.Context, req *pb.SendMessageReques
 	client := sendgrid.NewSendClient(os.Getenv("SENDGRID_API_KEY"))
 	if _, err := client.Send(message); err != nil {
 		log.Printf("error sending email: %v", err)
-		return nil, utils.ErrorMessageFromStatusCode(&utils.ErrorParams{
+		return utils.ErrorMessageFromStatusCode(&utils.ErrorParams{
 			Code:    codes.Internal,
 			Message: utils.InternalErrorMessage,
 		})
 	}
 
-	return &pb.Empty{}, nil
+	return nil
+}
+
+// useSMTP is a helper function to send email using gmail smtp
+func useSMTP(req *pb.SendMessageRequest) error {
+	// setup auth
+	auth := smtp.PlainAuth("", os.Getenv("MAIL_USERNAME"), os.Getenv("MAIL_PASSWORD"), os.Getenv("MAIL_HOST"))
+
+	// setup message
+	msg := []byte("To: " + req.GetEmail() + "\r\n" +
+		"Subject: " + req.GetSubject() + "\r\n" +
+		"\r\n" +
+		req.GetBody() + "\r\n")
+
+	// send email
+	if err := smtp.SendMail(os.Getenv("MAIL_HOST")+":"+os.Getenv("MAIL_PORT"), auth, os.Getenv("MAIL_USERNAME"), []string{req.GetEmail()}, msg); err != nil {
+		log.Printf("error sending email: %v", err)
+		return utils.ErrorMessageFromStatusCode(&utils.ErrorParams{
+			Code:    codes.Internal,
+			Message: utils.InternalErrorMessage,
+		})
+	}
+
+	return nil
 }
