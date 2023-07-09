@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	pb "github.com/qcodelabsllc/exag/email/gen"
 	"github.com/qcodelabsllc/exag/email/utils"
 	"github.com/sendgrid/sendgrid-go"
@@ -67,9 +68,17 @@ func useGmailSMTP(req *pb.SendMessageRequest) error {
 	// setup auth
 	auth := smtp.PlainAuth("", os.Getenv("MAIL_USERNAME"), os.Getenv("MAIL_PASSWORD"), os.Getenv("MAIL_HOST"))
 
+	var contentType string
+	if req.GetMailType() == pb.MailType_MAIL_TYPE_HTML {
+		contentType = "text/html"
+	} else {
+		contentType = "text/plain"
+	}
+
 	// setup message
 	msg := []byte("To: " + req.GetEmail() + "\r\n" +
 		"Subject: " + req.GetSubject() + "\r\n" +
+		fmt.Sprintf("Content-Type: %s; charset=UTF-8", contentType) +
 		"\r\n" +
 		req.GetBody() + "\r\n")
 
