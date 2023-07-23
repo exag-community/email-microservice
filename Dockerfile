@@ -1,11 +1,11 @@
 # stage 1: build stage
-FROM golang:latest AS builder
+FROM golang:1.21-rc-alpine3.18 AS builder
 
 # optional authors information
 LABEL authors="qcodelabsllc"
 
 # Install git and ca-certificates (needed to be able to call HTTPS)
-RUN apk --update add ca-certificates git
+RUN update-ca-certificates --fresh
 
 # Move to working directory /app
 WORKDIR /app
