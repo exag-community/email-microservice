@@ -1,5 +1,5 @@
 # stage 1: build stage
-FROM golang:1.20-alpine3.18 AS builder
+FROM golang:latest AS builder
 
 # optional authors information
 LABEL authors="qcodelabsllc"
@@ -18,7 +18,7 @@ RUN go build -o main main.go
 
 
 # stage 2: run stage
-FROM alpine:3.18.0
+FROM alpine:latest
 
 # Move to working directory /app
 WORKDIR /app
