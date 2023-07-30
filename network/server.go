@@ -4,6 +4,7 @@ import (
 	"fmt"
 	pb "github.com/qcodelabsllc/exag/email/gen"
 	svc "github.com/qcodelabsllc/exag/email/services"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"log"
@@ -13,7 +14,10 @@ import (
 
 func StartServer() {
 	// create grpc server
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(otelgrpc.UnaryServerInterceptor()),
+		grpc.StreamInterceptor(otelgrpc.StreamServerInterceptor()),
+	)
 
 	// register services
 	pb.RegisterEmailServiceServer(grpcServer, &svc.EmailServiceImpl{})
